@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/go-kit/log/level"
 )
 
 // needs the const if imported, cannot os.ReadFile in this case
@@ -85,13 +84,13 @@ func (e *Exporter) DefaultMetrics() Metrics {
 		if err == nil {
 			return metricsToScrape
 		}
-		level.Error(e.logger).Log("defaultMetricsFile", e.config.DefaultMetricsFile, "msg", err)
-		level.Warn(e.logger).Log("msg", "proceeding to run with default metrics")
+		e.logger.Errorw("defaultMetricsFile", e.config.DefaultMetricsFile, "msg", err)
+		e.logger.Warnw("msg", "proceeding to run with default metrics")
 	}
 
 	if _, err := toml.Decode(defaultMetricsConst, &metricsToScrape); err != nil {
-		level.Error(e.logger).Log("msg", err.Error())
-		panic(errors.New("Error while loading " + defaultMetricsConst))
+		e.logger.Errorw("msg", err.Error())
+		panic(errors.New("error while loading " + defaultMetricsConst))
 	}
 	return metricsToScrape
 }

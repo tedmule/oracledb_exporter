@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -15,10 +16,8 @@ import (
 	_ "github.com/sijms/go-ora/v2"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
-	"github.com/prometheus/common/promlog"
-	"github.com/prometheus/common/promlog/flag"
 
-	"github.com/go-kit/log/level"
+	"go.uber.org/zap"
 
 	// Required for debugging
 	// _ "net/http/pprof"
@@ -64,17 +63,21 @@ var (
 )
 
 func main() {
-	promLogConfig := &promlog.Config{}
-	flag.AddFlags(kingpin.CommandLine, promLogConfig)
+	zapLogger, _ := zap.NewProduction()
+	defer zapLogger.Sync()
+
+	// promsLogConfig := &promslog.Config{}
+	// flag.AddFlags(kingpin.CommandLine, promsLogConfig)
 	kingpin.HelpFlag.Short('\n')
 	kingpin.Version(version.Print("oracledb_exporter"))
 	kingpin.Parse()
-	logger := promlog.New(promLogConfig)
+	// logger := promslog.New(promsLogConfig)
+	logger := zapLogger.Sugar()
 
 	if dsnFile != nil && *dsnFile != "" {
 		dsnFileContent, err := os.ReadFile(*dsnFile)
 		if err != nil {
-			level.Error(logger).Log("msg", "Unable to read DATA_SOURCE_NAME_FILE", "file", dsnFile, "error", err)
+			logger.Infow("msg", "Unable to read DATA_SOURCE_NAME_FILE", "file", dsnFile, "error", err)
 			os.Exit(1)
 		}
 		*dsn = string(dsnFileContent)
@@ -90,7 +93,7 @@ func main() {
 	}
 	exporter, err := collector.NewExporter(logger, config)
 	if err != nil {
-		level.Error(logger).Log("unable to connect to DB", err)
+		logger.Errorw("unable to connect to DB", err)
 	}
 
 	if *scrapeInterval != 0 {
@@ -102,9 +105,9 @@ func main() {
 	prometheus.MustRegister(exporter)
 	prometheus.MustRegister(collectors.NewBuildInfoCollector())
 
-	level.Info(logger).Log("msg", "Starting oracledb_exporter", "version", version.Info())
-	level.Info(logger).Log("msg", "Build context", "build", version.BuildContext())
-	level.Info(logger).Log("msg", "Collect from: ", "metricPath", *metricPath)
+	logger.Infow("msg", "Starting oracledb_exporter", "version", version.Info())
+	logger.Infow("msg", "Build context", "build", version.BuildContext())
+	logger.Infow("msg", "Collect from: ", "metricPath", *metricPath)
 
 	opts := promhttp.HandlerOpts{
 		ErrorHandling: promhttp.ContinueOnError,
@@ -115,8 +118,9 @@ func main() {
 	})
 
 	server := &http.Server{}
-	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {
-		level.Error(logger).Log("msg", "Listening error", "reason", err)
+	httpLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	if err := web.ListenAndServe(server, toolkitFlags, httpLogger); err != nil {
+		logger.Errorw("msg", "Listening error", "reason", err)
 		os.Exit(1)
 	}
 }
