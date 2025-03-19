@@ -35,10 +35,10 @@ metrics:
     count: "Gauge metric with count of processes."
   request: "SELECT COUNT(*) as count FROM v$process"
 
-#- context: "apply_lag"
-#  metricsdesc:
-#    value: "Gauge metric for apply lag."
-#  request: "select value from v$dataguard_stats t where t.name='apply lag'"
+- context: "apply_lag"
+  metricsdesc:
+    value: "Gauge metric for apply lag."
+  request: "select value from v$dataguard_stats t where t.name='apply lag'"
 
 - context: "wait"
   labels: [ "wait_class" ]

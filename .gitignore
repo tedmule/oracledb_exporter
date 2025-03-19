@@ -7,3 +7,4 @@ dist/
 oci8.pc
 *.skip
 tmp/
+oracledb_exporter

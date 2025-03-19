@@ -1,0 +1,10 @@
+From alpine:3.9
+
+COPY oracledb_exporter /oracledb_exporter
+ADD ./default-metrics.yaml /default-metrics.yaml
+
+EXPOSE 9161
+# nobody in alpine
+USER 65534 
+
+ENTRYPOINT ["/oracledb_exporter"]
