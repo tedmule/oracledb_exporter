@@ -3,7 +3,7 @@ metrics:
   labels: [ "status", "type" ]
   metricsdesc:
     value: "Gauge metric with count of sessions by status and type."
-  request: "SELECT status, type, COUNT(*) as value FROM v$session GROUP BY status, type"
+  request: "SELECT status, type, COUNT(*) as value FROM gv$session GROUP BY status, type"
 
 - context: "resource"
   labels: [ "resource_name" ]
@@ -33,7 +33,7 @@ metrics:
 - context: "process"
   metricsdesc:
     count: "Gauge metric with count of processes."
-  request: "SELECT COUNT(*) as count FROM v$process"
+  request: "SELECT COUNT(*) as count FROM gv$process"
 
 - context: "apply_lag"
   metricsdesc:
