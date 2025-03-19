@@ -198,7 +198,8 @@ endif
 
 VERSION = $(shell date +%Y%m%d-%H%M)
 APP_NAME = oracledb_exporter
-IMAGE_NAME = $(APP_NAME)
+#IMAGE_NAME = $(APP_NAME)
+IMAGE_NAME = oracledb-exporter
 IMAGE_TAG = $(VERSION)
 
 # 编译目标的操作系统和架构
