@@ -38,7 +38,7 @@ var (
 	defaultFileMetrics = kingpin.Flag(
 		"default.metrics",
 		"File with default metrics in a toml or yaml format. (env: DEFAULT_METRICS)",
-	).Default(getEnv("DEFAULT_METRICS", "default-metrics.toml")).String()
+	).Default(getEnv("DEFAULT_METRICS", "default-metrics.yaml")).String()
 	customMetrics = kingpin.Flag(
 		"custom.metrics",
 		"File that may contain various custom metrics in a toml or yaml format. (env: CUSTOM_METRICS)",
@@ -64,6 +64,7 @@ var (
 
 func main() {
 	zapLogger, _ := zap.NewProduction()
+	// zapLogger, _ := zap.NewDevelopment()
 	defer zapLogger.Sync()
 
 	// promsLogConfig := &promslog.Config{}
@@ -74,6 +75,7 @@ func main() {
 	// logger := promslog.New(promsLogConfig)
 	logger := zapLogger.Sugar()
 
+	// DELETE <<<EOF
 	if dsnFile != nil && *dsnFile != "" {
 		dsnFileContent, err := os.ReadFile(*dsnFile)
 		if err != nil {
@@ -82,6 +84,7 @@ func main() {
 		}
 		*dsn = string(dsnFileContent)
 	}
+	//EOF
 
 	config := &collector.Config{
 		DSN:                *dsn,
@@ -105,9 +108,9 @@ func main() {
 	prometheus.MustRegister(exporter)
 	prometheus.MustRegister(collectors.NewBuildInfoCollector())
 
-	logger.Infow("msg", "Starting oracledb_exporter", "version", version.Info())
-	logger.Infow("msg", "Build context", "build", version.BuildContext())
-	logger.Infow("msg", "Collect from: ", "metricPath", *metricPath)
+	logger.Infow("Starting oracledb_exporter", "version", version.Info())
+	logger.Infow("Build context", "build", version.BuildContext())
+	logger.Infow("Collect from: ", "metricPath", *metricPath)
 
 	opts := promhttp.HandlerOpts{
 		ErrorHandling: promhttp.ContinueOnError,

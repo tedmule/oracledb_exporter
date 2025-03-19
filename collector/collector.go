@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -83,6 +84,62 @@ var (
 	namespace         = "oracledb"
 	exporterName      = "exporter"
 )
+
+func timeToSeconds(timeStr string) (float64, error) {
+	// 定义正则表达式
+	pattern := `^([+-])(\d+)\s(\d{2}):(\d{2}):(\d{2})$`
+	re := regexp.MustCompile(pattern)
+
+	// 检查是否匹配
+	if !re.MatchString(timeStr) {
+		return 0, fmt.Errorf("时间格式不匹配，应为 '+DD HH:MM:SS'")
+	}
+
+	// 提取各个部分
+	matches := re.FindStringSubmatch(timeStr)
+	if len(matches) != 6 {
+		return 0, fmt.Errorf("解析时间失败")
+	}
+
+	sign := matches[1]    // "+" 或 "-"
+	days := matches[2]    // 天数
+	hours := matches[3]   // 小时
+	minutes := matches[4] // 分钟
+	seconds := matches[5] // 秒
+
+	// 转换为数字
+	d, err := strconv.ParseFloat(days, 64)
+	if err != nil {
+		return 0, err
+	}
+	h, err := strconv.Atoi(hours)
+	if err != nil {
+		return 0, err
+	}
+	m, err := strconv.Atoi(minutes)
+	if err != nil {
+		return 0, err
+	}
+	s, err := strconv.Atoi(seconds)
+	if err != nil {
+		return 0, err
+	}
+
+	// 验证时间范围
+	if h > 23 || m > 59 || s > 59 {
+		return 0, fmt.Errorf("时间值超出范围")
+	}
+
+	// 计算总秒数
+	totalSeconds := d*24*3600 + float64(h)*3600 + float64(m)*60 + float64(s)
+
+	// 应用正负号
+	if sign == "-" {
+		totalSeconds = -totalSeconds
+	}
+
+	return totalSeconds, nil
+}
 
 func maskDsn(dsn string) string {
 	parts := strings.Split(dsn, "@")
@@ -451,13 +508,19 @@ func (e *Exporter) scrapeGenericValues(db *sql.DB, ch chan<- prometheus.Metric, 
 		for _, label := range labels {
 			labelsValues = append(labelsValues, row[label])
 		}
+		var value float64
+		var err error
 		// Construct Prometheus values to sent back
 		for metric, metricHelp := range metricsDesc {
-			value, err := strconv.ParseFloat(strings.TrimSpace(row[metric]), 64)
+			value, err = strconv.ParseFloat(strings.TrimSpace(row[metric]), 64)
 			// If not a float, skip current metric
 			if err != nil {
-				e.logger.Errorw("msg", "Unable to convert current value to float", "metric", metric, "metricHelp", metricHelp, "value", row[metric])
-				continue
+				// Try parse string as format "+00 00:00:00"
+				value, err = timeToSeconds(strings.TrimSpace(row[metric]))
+				if err != nil {
+					e.logger.Errorw("msg", "Unable to convert current value to float", "metric", metric, "metricHelp", metricHelp, "value", row[metric])
+					continue
+				}
 			}
 			e.logger.Debugw("Query result looks like: ", value)
 			// If metric do not use a field content in metric's name
@@ -560,6 +623,7 @@ func (e *Exporter) generatePrometheusMetrics(db *sql.DB, parse func(row map[stri
 		return err
 	}
 	cols, err := rows.Columns()
+	// fmt.Printf("___________ query: %s, cols: %+v\n", query, cols)
 	defer rows.Close()
 
 	for rows.Next() {
